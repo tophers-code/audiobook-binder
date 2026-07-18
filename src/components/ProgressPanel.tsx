@@ -1,24 +1,51 @@
+import { useState, useEffect } from 'react'
 import { BinderStatus } from '../hooks/useAudioBinder'
 
 interface Props {
   status: BinderStatus
   progress: number
   label: string
+  startedAt: number | null
   error: string | null
   outputUrl: string | null
   outputFilename: string
   onReset: () => void
 }
 
+function useElapsed(startedAt: number | null, active: boolean): string {
+  const [elapsed, setElapsed] = useState(0)
+
+  useEffect(() => {
+    if (!active || startedAt === null) {
+      setElapsed(0)
+      return
+    }
+    setElapsed(Math.floor((Date.now() - startedAt) / 1000))
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startedAt) / 1000))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [active, startedAt])
+
+  if (elapsed < 60) return `${elapsed}s`
+  const m = Math.floor(elapsed / 60)
+  const s = elapsed % 60
+  return `${m}m ${s}s`
+}
+
 export default function ProgressPanel({
   status,
   progress,
   label,
+  startedAt,
   error,
   outputUrl,
   outputFilename,
   onReset,
 }: Props) {
+  const isActive = status === 'processing' || status === 'loading-ffmpeg'
+  const elapsed = useElapsed(startedAt, isActive)
+
   if (status === 'error') {
     return (
       <div className="space-y-3">
@@ -64,8 +91,8 @@ export default function ProgressPanel({
   return (
     <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 space-y-3">
       <div className="flex justify-between text-sm">
-        <span className="text-slate-400">{label || 'Working...'}</span>
-        <span className="text-slate-500 tabular-nums">{progress}%</span>
+        <span className="text-slate-400 truncate pr-4">{label || 'Working...'}</span>
+        <span className="text-slate-500 tabular-nums flex-shrink-0">{progress}%</span>
       </div>
       <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
         <div
@@ -73,6 +100,11 @@ export default function ProgressPanel({
           style={{ width: `${progress}%` }}
         />
       </div>
+      {startedAt !== null && (
+        <p className="text-xs text-slate-600 tabular-nums">
+          Elapsed: {elapsed} — large audiobooks can take 30–90 min in browser
+        </p>
+      )}
     </div>
   )
 }

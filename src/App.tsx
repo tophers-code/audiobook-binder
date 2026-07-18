@@ -95,6 +95,7 @@ export default function App() {
             status={binder.status}
             progress={binder.progress}
             label={binder.progressLabel}
+            startedAt={binder.startedAt}
             error={binder.error}
             outputUrl={binder.outputUrl}
             outputFilename={outputFilename}

@@ -21,6 +21,7 @@ export function useAudioBinder() {
   const [status, setStatus] = useState<BinderStatus>('idle')
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
+  const [startedAt, setStartedAt] = useState<number | null>(null)
   const [outputUrl, setOutputUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -114,17 +115,20 @@ export function useAudioBinder() {
       // Track encode progress via time position in FFmpeg log output
       const totalDurationSec = currentFiles.reduce((sum, f) => sum + (f.duration ?? 0), 0)
       const handleLog = ({ message }: { message: string }) => {
+        console.log('[FFmpeg]', message)
         const match = message.match(/time=(\d+):(\d+):(\d+\.\d+)/)
         if (match && totalDurationSec > 0) {
           const secs =
             parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseFloat(match[3])
           const p = 35 + Math.round((secs / totalDurationSec) * 58)
           setProgress(Math.min(p, 93))
+          setProgressLabel(`Encoding... ${match[0].replace('time=', '')}`)
         }
       }
       ffmpeg.on('log', handleLog)
 
       setStatus('processing')
+      setStartedAt(Date.now())
       setProgress(5)
 
       // Write input files into FFmpeg virtual FS
@@ -209,6 +213,7 @@ export function useAudioBinder() {
     setStatus('idle')
     setProgress(0)
     setProgressLabel('')
+    setStartedAt(null)
     setError(null)
     setOutputUrl(null)
   }, [])
@@ -224,6 +229,7 @@ export function useAudioBinder() {
     setStatus('idle')
     setProgress(0)
     setProgressLabel('')
+    setStartedAt(null)
     setError(null)
     setOutputUrl(null)
   }, [])
@@ -235,6 +241,7 @@ export function useAudioBinder() {
     status,
     progress,
     progressLabel,
+    startedAt,
     outputUrl,
     error,
     addFiles,
