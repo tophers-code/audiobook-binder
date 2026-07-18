@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { FFmpeg } from '@ffmpeg/ffmpeg'
 import { fetchFile, toBlobURL } from '@ffmpeg/util'
-import { getAudioDuration, sanitizeFilename } from '../utils/audioHelpers'
+import { getAudioDuration, sanitizeFilename, prepareImageForFFmpeg } from '../utils/audioHelpers'
 import { buildFFMetadata } from '../utils/ffmetadata'
 
 export interface AudioFileEntry {
@@ -161,10 +161,12 @@ export function useAudioBinder() {
         await ffmpeg.writeFile(entry.safeFilename, await fetchFile(entry.file))
       }
 
-      // Write cover art if provided
+      // Write cover art if provided — resize/convert to JPEG via Canvas first
+      // so FFmpeg.wasm never has to handle large RGBA PNGs through swscale
       if (currentCoverArt) {
-        setProgressLabel('Loading cover art...')
-        await ffmpeg.writeFile('cover', await fetchFile(currentCoverArt))
+        setProgressLabel('Processing cover art...')
+        const coverBytes = await prepareImageForFFmpeg(currentCoverArt)
+        await ffmpeg.writeFile('cover.jpg', coverBytes)
       }
 
       setProgress(30)
@@ -202,7 +204,7 @@ export function useAudioBinder() {
       ]
 
       if (currentCoverArt) {
-        args.push('-i', 'cover')
+        args.push('-i', 'cover.jpg')
       }
 
       // Map audio from input 0, cover art from input 2 (if present)
@@ -219,8 +221,8 @@ export function useAudioBinder() {
       )
 
       if (currentCoverArt) {
-        // Encode cover as JPEG attached picture (the format Apple Books reads)
-        args.push('-c:v', 'mjpeg', '-q:v', '2', '-disposition:v:0', 'attached_pic')
+        // Input is already a JPEG (prepared by Canvas), copy directly into container
+        args.push('-c:v', 'copy', '-disposition:v:0', 'attached_pic')
       } else {
         args.push('-vn')
       }
@@ -246,7 +248,7 @@ export function useAudioBinder() {
       await ffmpeg.deleteFile('filelist.txt').catch(() => {})
       await ffmpeg.deleteFile('metadata.txt').catch(() => {})
       await ffmpeg.deleteFile('output.m4b').catch(() => {})
-      if (currentCoverArt) await ffmpeg.deleteFile('cover').catch(() => {})
+      if (currentCoverArt) await ffmpeg.deleteFile('cover.jpg').catch(() => {})
 
       setProgress(100)
       setProgressLabel('Done!')
