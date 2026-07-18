@@ -3,7 +3,7 @@ import { resolve, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const src = resolve(root, 'node_modules/@ffmpeg/core/dist/umd')
+const src = resolve(root, 'node_modules/@ffmpeg/core/dist/esm')
 const dest = resolve(root, 'public/ffmpeg')
 
 mkdirSync(dest, { recursive: true })
