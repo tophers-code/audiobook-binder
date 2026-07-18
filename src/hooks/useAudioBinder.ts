@@ -18,6 +18,8 @@ export function useAudioBinder() {
   const [files, setFiles] = useState<AudioFileEntry[]>([])
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
+  const [coverArt, setCoverArtFile] = useState<File | null>(null)
+  const [coverArtPreviewUrl, setCoverArtPreviewUrl] = useState<string | null>(null)
   const [status, setStatus] = useState<BinderStatus>('idle')
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
@@ -27,14 +29,33 @@ export function useAudioBinder() {
 
   const ffmpegRef = useRef<FFmpeg | null>(null)
   const outputUrlRef = useRef<string | null>(null)
+  const coverArtPreviewUrlRef = useRef<string | null>(null)
 
   // Keep refs in sync so the stable `bind` callback can read latest values
   const filesRef = useRef(files)
   const titleRef = useRef(title)
   const authorRef = useRef(author)
+  const coverArtRef = useRef(coverArt)
   useEffect(() => { filesRef.current = files }, [files])
   useEffect(() => { titleRef.current = title }, [title])
   useEffect(() => { authorRef.current = author }, [author])
+  useEffect(() => { coverArtRef.current = coverArt }, [coverArt])
+
+  const setCoverArt = useCallback((file: File | null) => {
+    // Revoke previous preview URL
+    if (coverArtPreviewUrlRef.current) {
+      URL.revokeObjectURL(coverArtPreviewUrlRef.current)
+      coverArtPreviewUrlRef.current = null
+    }
+    setCoverArtFile(file)
+    if (file) {
+      const url = URL.createObjectURL(file)
+      coverArtPreviewUrlRef.current = url
+      setCoverArtPreviewUrl(url)
+    } else {
+      setCoverArtPreviewUrl(null)
+    }
+  }, [])
 
   const addFiles = useCallback((newFiles: File[]) => {
     const mp3Files = newFiles.filter(
@@ -86,6 +107,7 @@ export function useAudioBinder() {
     const currentFiles = filesRef.current
     const currentTitle = titleRef.current
     const currentAuthor = authorRef.current
+    const currentCoverArt = coverArtRef.current
 
     if (currentFiles.length === 0) return
 
@@ -139,6 +161,12 @@ export function useAudioBinder() {
         await ffmpeg.writeFile(entry.safeFilename, await fetchFile(entry.file))
       }
 
+      // Write cover art if provided
+      if (currentCoverArt) {
+        setProgressLabel('Loading cover art...')
+        await ffmpeg.writeFile('cover', await fetchFile(currentCoverArt))
+      }
+
       setProgress(30)
       setProgressLabel('Computing chapter times...')
 
@@ -166,21 +194,40 @@ export function useAudioBinder() {
       setProgress(35)
       setProgressLabel('Encoding audiobook...')
 
-      await ffmpeg.exec([
+      const args: string[] = [
         '-f', 'concat',
         '-safe', '0',
         '-i', 'filelist.txt',
         '-i', 'metadata.txt',
-        '-map', '0:a:0',       // audio only — ignore embedded cover art in MP3s
+      ]
+
+      if (currentCoverArt) {
+        args.push('-i', 'cover')
+      }
+
+      // Map audio from input 0, cover art from input 2 (if present)
+      args.push('-map', '0:a:0')
+      if (currentCoverArt) {
+        args.push('-map', '2:v:0')
+      }
+
+      args.push(
         '-map_metadata', '1',
         '-map_chapters', '1',
         '-c:a', 'aac',
         '-b:a', '128k',
-        '-vn',                 // belt-and-suspenders: no video output
-        '-f', 'mp4',
-        '-movflags', '+faststart',
-        'output.m4b',
-      ])
+      )
+
+      if (currentCoverArt) {
+        // Encode cover as JPEG attached picture (the format Apple Books reads)
+        args.push('-c:v', 'mjpeg', '-q:v', '2', '-disposition:v:0', 'attached_pic')
+      } else {
+        args.push('-vn')
+      }
+
+      args.push('-f', 'mp4', '-movflags', '+faststart', 'output.m4b')
+
+      await ffmpeg.exec(args)
 
       ffmpeg.off('log', handleLog)
 
@@ -199,6 +246,7 @@ export function useAudioBinder() {
       await ffmpeg.deleteFile('filelist.txt').catch(() => {})
       await ffmpeg.deleteFile('metadata.txt').catch(() => {})
       await ffmpeg.deleteFile('output.m4b').catch(() => {})
+      if (currentCoverArt) await ffmpeg.deleteFile('cover').catch(() => {})
 
       setProgress(100)
       setProgressLabel('Done!')
@@ -225,9 +273,15 @@ export function useAudioBinder() {
       URL.revokeObjectURL(outputUrlRef.current)
       outputUrlRef.current = null
     }
+    if (coverArtPreviewUrlRef.current) {
+      URL.revokeObjectURL(coverArtPreviewUrlRef.current)
+      coverArtPreviewUrlRef.current = null
+    }
     setFiles([])
     setTitle('')
     setAuthor('')
+    setCoverArtFile(null)
+    setCoverArtPreviewUrl(null)
     setStatus('idle')
     setProgress(0)
     setProgressLabel('')
@@ -240,6 +294,7 @@ export function useAudioBinder() {
     files,
     title,
     author,
+    coverArtPreviewUrl,
     status,
     progress,
     progressLabel,
@@ -252,6 +307,7 @@ export function useAudioBinder() {
     updateChapterTitle,
     setTitle,
     setAuthor,
+    setCoverArt,
     bind,
     reset,
     clearAll,

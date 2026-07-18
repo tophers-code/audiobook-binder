@@ -2,6 +2,7 @@ import { useAudioBinder } from './hooks/useAudioBinder'
 import DropZone from './components/DropZone'
 import FileList from './components/FileList'
 import ProgressPanel from './components/ProgressPanel'
+import CoverArtPicker from './components/CoverArtPicker'
 import { formatDuration } from './utils/audioHelpers'
 
 export default function App() {
@@ -34,33 +35,44 @@ export default function App() {
       </header>
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-6 py-8 flex flex-col gap-6">
-        {/* Metadata */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">
-              Title
-            </label>
-            <input
-              type="text"
-              value={binder.title}
-              onChange={e => binder.setTitle(e.target.value)}
-              placeholder="My Audiobook"
+        {/* Metadata row: cover art + title/author */}
+        <div className="flex gap-4 items-start">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-slate-500 uppercase tracking-wider">Cover</span>
+            <CoverArtPicker
+              previewUrl={binder.coverArtPreviewUrl}
               disabled={isProcessing}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600 disabled:opacity-50 transition-colors"
+              onFile={binder.setCoverArt}
             />
           </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">
-              Author
-            </label>
-            <input
-              type="text"
-              value={binder.author}
-              onChange={e => binder.setAuthor(e.target.value)}
-              placeholder="Author Name"
-              disabled={isProcessing}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600 disabled:opacity-50 transition-colors"
-            />
+
+          <div className="flex-1 flex flex-col gap-3">
+            <div>
+              <label className="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">
+                Title
+              </label>
+              <input
+                type="text"
+                value={binder.title}
+                onChange={e => binder.setTitle(e.target.value)}
+                placeholder="My Audiobook"
+                disabled={isProcessing}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600 disabled:opacity-50 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">
+                Author
+              </label>
+              <input
+                type="text"
+                value={binder.author}
+                onChange={e => binder.setAuthor(e.target.value)}
+                placeholder="Author Name"
+                disabled={isProcessing}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600 disabled:opacity-50 transition-colors"
+              />
+            </div>
           </div>
         </div>
 
