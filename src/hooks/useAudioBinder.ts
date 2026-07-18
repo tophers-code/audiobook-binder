@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { FFmpeg } from '@ffmpeg/ffmpeg'
-import { fetchFile } from '@ffmpeg/util'
+import { fetchFile, toBlobURL } from '@ffmpeg/util'
 import { getAudioDuration, sanitizeFilename } from '../utils/audioHelpers'
 import { buildFFMetadata } from '../utils/ffmetadata'
 
@@ -103,7 +103,7 @@ export function useAudioBinder() {
       if (!ffmpegRef.current) {
         const ffmpeg = new FFmpeg()
         await ffmpeg.load({
-          coreURL: '/ffmpeg/ffmpeg-core.js',
+          coreURL: await toBlobURL('/ffmpeg/ffmpeg-core.js', 'text/javascript'),
           wasmURL: '/ffmpeg/ffmpeg-core.wasm',
         })
         ffmpegRef.current = ffmpeg
