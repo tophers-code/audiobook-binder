@@ -171,10 +171,12 @@ export function useAudioBinder() {
         '-safe', '0',
         '-i', 'filelist.txt',
         '-i', 'metadata.txt',
+        '-map', '0:a:0',       // audio only — ignore embedded cover art in MP3s
         '-map_metadata', '1',
         '-map_chapters', '1',
         '-c:a', 'aac',
         '-b:a', '128k',
+        '-vn',                 // belt-and-suspenders: no video output
         '-f', 'mp4',
         '-movflags', '+faststart',
         'output.m4b',
