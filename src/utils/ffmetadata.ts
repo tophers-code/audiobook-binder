@@ -4,6 +4,77 @@ export interface ChapterMeta {
   endMs: number
 }
 
+export interface ParsedFFMetadata {
+  title: string
+  author: string
+  narrator: string
+  genre: string
+  chapters: ChapterMeta[]
+}
+
+export function parseFFMetadata(text: string): ParsedFFMetadata {
+  const lines = text.split('\n')
+  let inChapter = false
+  let chapterTitle = '', chapterStart = 0, chapterEnd = 0, chapterTimescale = 1000
+  const chapters: ChapterMeta[] = []
+  let title = '', author = '', narrator = '', genre = ''
+
+  const unescape = (s: string) => s.replace(/\\([=;#\\])/g, '$1')
+
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line || line.startsWith(';')) continue
+
+    if (line.startsWith('[')) {
+      if (inChapter) {
+        chapters.push({
+          title: chapterTitle,
+          startMs: Math.round(chapterStart * 1000 / chapterTimescale),
+          endMs: Math.round(chapterEnd * 1000 / chapterTimescale),
+        })
+      }
+      inChapter = line.toUpperCase() === '[CHAPTER]'
+      chapterTitle = ''
+      chapterStart = 0
+      chapterEnd = 0
+      chapterTimescale = 1000
+      continue
+    }
+
+    const eqIdx = line.indexOf('=')
+    if (eqIdx < 0) continue
+    const key = line.substring(0, eqIdx).trim().toLowerCase()
+    const value = unescape(line.substring(eqIdx + 1))
+
+    if (inChapter) {
+      if (key === 'title') chapterTitle = value
+      else if (key === 'start') chapterStart = parseInt(value, 10)
+      else if (key === 'end') chapterEnd = parseInt(value, 10)
+      else if (key === 'timebase') {
+        // e.g. "1/1000" → timescale denominator = 1000 ticks/second
+        const parts = value.split('/')
+        const den = Number(parts[1])
+        if (den > 0) chapterTimescale = den
+      }
+    } else {
+      if (key === 'title') title = value
+      else if (key === 'artist') author = value
+      else if (key === 'composer') narrator = value
+      else if (key === 'genre') genre = value
+    }
+  }
+
+  if (inChapter) {
+    chapters.push({
+      title: chapterTitle,
+      startMs: Math.round(chapterStart * 1000 / chapterTimescale),
+      endMs: Math.round(chapterEnd * 1000 / chapterTimescale),
+    })
+  }
+
+  return { title, author, narrator, genre, chapters }
+}
+
 export function buildFFMetadata(
   title: string,
   author: string,

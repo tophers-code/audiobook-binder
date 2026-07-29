@@ -4,9 +4,23 @@ interface Props {
   onFiles: (files: File[]) => void
   compact?: boolean
   disabled?: boolean
+  accept?: string
+  multiple?: boolean
+  label?: string
+  sublabel?: string
+  compactLabel?: string
 }
 
-export default function DropZone({ onFiles, compact = false, disabled = false }: Props) {
+export default function DropZone({
+  onFiles,
+  compact = false,
+  disabled = false,
+  accept = '.mp3,audio/mpeg',
+  multiple = true,
+  label = 'Drop MP3 files here',
+  sublabel = 'or click to browse — each file becomes a chapter',
+  compactLabel = 'Drop or click to add more MP3 files',
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
 
@@ -42,8 +56,8 @@ export default function DropZone({ onFiles, compact = false, disabled = false }:
     <input
       ref={inputRef}
       type="file"
-      accept=".mp3,audio/mpeg"
-      multiple
+      accept={accept}
+      multiple={multiple}
       onChange={handleChange}
       className="hidden"
     />
@@ -63,7 +77,7 @@ export default function DropZone({ onFiles, compact = false, disabled = false }:
         } ${disabled ? 'pointer-events-none opacity-30' : ''}`}
       >
         {input}
-        Drop or click to add more MP3 files
+        {compactLabel}
       </div>
     )
   }
@@ -94,8 +108,8 @@ export default function DropZone({ onFiles, compact = false, disabled = false }:
           <path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
         </svg>
       </div>
-      <p className="text-slate-300 font-medium mb-1">Drop MP3 files here</p>
-      <p className="text-slate-500 text-sm">or click to browse — each file becomes a chapter</p>
+      <p className="text-slate-300 font-medium mb-1">{label}</p>
+      <p className="text-slate-500 text-sm">{sublabel}</p>
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useAudioBinder } from './hooks/useAudioBinder'
 import { useLocalHistory } from './hooks/useLocalHistory'
 import DropZone from './components/DropZone'
@@ -6,12 +7,16 @@ import ProgressPanel from './components/ProgressPanel'
 import CoverArtPicker from './components/CoverArtPicker'
 import EncodingOptions from './components/EncodingOptions'
 import AutocompleteInput from './components/AutocompleteInput'
+import EditorPanel from './components/EditorPanel'
 import { formatDuration } from './utils/audioHelpers'
+
+type Mode = 'create' | 'edit'
 
 const INPUT_CLASS =
   'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600 disabled:opacity-50 transition-colors'
 
 export default function App() {
+  const [mode, setMode] = useState<Mode>('create')
   const binder = useAudioBinder()
 
   const titleHistory   = useLocalHistory('title')
@@ -54,17 +59,38 @@ export default function App() {
           <h1 className="font-semibold text-slate-100">Audiobook Binder</h1>
         </div>
 
-        {binder.files.length > 0 && binder.status === 'idle' && (
-          <button
-            onClick={binder.clearAll}
-            className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
-          >
-            Clear all
-          </button>
-        )}
+        <div className="flex items-center gap-4">
+          {/* Mode tabs */}
+          <div className="flex bg-slate-800 rounded-lg p-0.5 text-sm">
+            {(['create', 'edit'] as Mode[]).map(m => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`px-3 py-1 rounded-md capitalize transition-colors ${
+                  mode === m
+                    ? 'bg-slate-700 text-slate-100'
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {m === 'create' ? 'Create' : 'Edit'}
+              </button>
+            ))}
+          </div>
+
+          {mode === 'create' && binder.files.length > 0 && binder.status === 'idle' && (
+            <button
+              onClick={binder.clearAll}
+              className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
       </header>
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-6 py-8 flex flex-col gap-6">
+        {mode === 'edit' && <EditorPanel />}
+        {mode === 'create' && <>
         {/* Metadata row: cover art + four fields */}
         <div className="flex gap-4 items-start">
           <div className="flex flex-col gap-1">
@@ -153,6 +179,7 @@ export default function App() {
             Bind to M4B
           </button>
         )}
+        </>}
       </main>
     </div>
   )
