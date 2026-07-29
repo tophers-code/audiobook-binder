@@ -10,6 +10,7 @@ import EncodingOptions from './components/EncodingOptions'
 import AutocompleteInput from './components/AutocompleteInput'
 import EditorPanel from './components/EditorPanel'
 import MiniPlayer from './components/MiniPlayer'
+import ChapterTemplate from './components/ChapterTemplate'
 import { formatDuration } from './utils/audioHelpers'
 
 type Mode = 'create' | 'edit'
@@ -151,8 +152,13 @@ export default function App() {
                 {totalDuration > 0 && ` · ${formatDuration(totalDuration)}`}
                 {estimatedMB && ` · ~${estimatedMB} MB`}
               </span>
-              <span className="text-xs text-slate-600">Drag to reorder · click title to rename</span>
+              <span className="text-xs text-slate-600">Drag to Reorder · Click Title to Rename</span>
             </div>
+
+            <ChapterTemplate
+              disabled={isProcessing}
+              onApply={binder.applyTemplate}
+            />
 
             <FileList
               files={binder.files}

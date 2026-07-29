@@ -3,6 +3,7 @@ import { FFmpeg } from '@ffmpeg/ffmpeg'
 import { fetchFile, toBlobURL } from '@ffmpeg/util'
 import { getAudioDuration, sanitizeFilename, prepareImageForFFmpeg } from '../utils/audioHelpers'
 import { buildFFMetadata } from '../utils/ffmetadata'
+import { applyChapterTemplate } from '../utils/chapterTemplate'
 
 export interface AudioFileEntry {
   id: string
@@ -122,6 +123,20 @@ export function useAudioBinder() {
 
   const updateChapterTitle = useCallback((id: string, chapterTitle: string) => {
     setFiles(prev => prev.map(f => (f.id === id ? { ...f, chapterTitle } : f)))
+  }, [])
+
+  const applyTemplate = useCallback((template: string) => {
+    setFiles(prev => prev.map((f, i) => ({
+      ...f,
+      chapterTitle: template.trim()
+        ? applyChapterTemplate(
+            template, i, prev.length,
+            f.file.name.replace(/\.[^.]+$/, ''),
+            titleRef.current,
+            authorRef.current,
+          )
+        : f.file.name.replace(/\.[^.]+$/, ''),
+    })))
   }, [])
 
   const bind = useCallback(async () => {
@@ -345,6 +360,7 @@ export function useAudioBinder() {
     removeFile,
     reorderFiles,
     updateChapterTitle,
+    applyTemplate,
     setTitle,
     setAuthor,
     setNarrator,
