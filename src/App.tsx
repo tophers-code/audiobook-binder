@@ -91,9 +91,14 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-2xl mx-auto w-full px-6 py-8 flex flex-col gap-6">
-        {mode === 'edit' && <EditorPanel />}
-        {mode === 'create' && <>
+      <main className="flex-1 max-w-2xl mx-auto w-full px-6 py-8">
+        {/* Edit mode — always mounted to preserve state */}
+        <div className={`flex flex-col gap-6 ${mode !== 'edit' ? 'hidden' : ''}`}>
+          <EditorPanel />
+        </div>
+
+        {/* Create mode — always mounted to preserve state */}
+        <div className={`flex flex-col gap-6 ${mode !== 'create' ? 'hidden' : ''}`}>
         {/* Metadata row: cover art + four fields */}
         <div className="flex gap-4 items-start">
           <div className="flex flex-col gap-1">
@@ -191,19 +196,21 @@ export default function App() {
             Bind to M4B
           </button>
         )}
-        </>}
+        </div>
       </main>
 
-      {mode === 'create' && player.currentFile && (
-        <MiniPlayer
-          title={player.currentTitle}
-          isPlaying={player.isPlaying}
-          currentTime={player.currentTime}
-          duration={player.duration}
-          onPlayPause={() => player.isPlaying ? player.pause() : player.resume()}
-          onSeek={player.seek}
-          onClose={player.close}
-        />
+      {player.currentFile && (
+        <div className={mode !== 'create' ? 'hidden' : ''}>
+          <MiniPlayer
+            title={player.currentTitle}
+            isPlaying={player.isPlaying}
+            currentTime={player.currentTime}
+            duration={player.duration}
+            onPlayPause={() => player.isPlaying ? player.pause() : player.resume()}
+            onSeek={player.seek}
+            onClose={player.close}
+          />
+        </div>
       )}
     </div>
   )
