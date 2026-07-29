@@ -7,6 +7,8 @@ export interface ChapterMeta {
 export function buildFFMetadata(
   title: string,
   author: string,
+  narrator: string,
+  genre: string,
   chapters: ChapterMeta[],
 ): string {
   const lines: string[] = [';FFMETADATA1']
@@ -17,7 +19,8 @@ export function buildFFMetadata(
     lines.push(`album_artist=${esc(author)}`)
     lines.push(`album=${esc(title || 'Audiobook')}`)
   }
-  lines.push('genre=Audiobook')
+  if (narrator) lines.push(`composer=${esc(narrator)}`)
+  lines.push(`genre=${esc(genre || 'Audiobook')}`)
   lines.push('')
 
   for (const ch of chapters) {

@@ -50,33 +50,27 @@ export default function App() {
             />
           </div>
 
-          <div className="flex-1 flex flex-col gap-3">
-            <div>
-              <label className="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">
-                Title
-              </label>
-              <input
-                type="text"
-                value={binder.title}
-                onChange={e => binder.setTitle(e.target.value)}
-                placeholder="My Audiobook"
-                disabled={isProcessing}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600 disabled:opacity-50 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">
-                Author
-              </label>
-              <input
-                type="text"
-                value={binder.author}
-                onChange={e => binder.setAuthor(e.target.value)}
-                placeholder="Author Name"
-                disabled={isProcessing}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600 disabled:opacity-50 transition-colors"
-              />
-            </div>
+          <div className="flex-1 grid grid-cols-2 gap-3">
+            {[
+              { label: 'Title', value: binder.title, onChange: binder.setTitle, placeholder: 'My Audiobook' },
+              { label: 'Author', value: binder.author, onChange: binder.setAuthor, placeholder: 'Author Name' },
+              { label: 'Narrator', value: binder.narrator, onChange: binder.setNarrator, placeholder: 'Narrator Name' },
+              { label: 'Genre', value: binder.genre, onChange: binder.setGenre, placeholder: 'Audiobook' },
+            ].map(({ label, value, onChange, placeholder }) => (
+              <div key={label}>
+                <label className="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">
+                  {label}
+                </label>
+                <input
+                  type="text"
+                  value={value}
+                  onChange={e => onChange(e.target.value)}
+                  placeholder={placeholder}
+                  disabled={isProcessing}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600 disabled:opacity-50 transition-colors"
+                />
+              </div>
+            ))}
           </div>
         </div>
 

@@ -18,6 +18,8 @@ export function useAudioBinder() {
   const [files, setFiles] = useState<AudioFileEntry[]>([])
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
+  const [narrator, setNarrator] = useState('')
+  const [genre, setGenre] = useState('Audiobook')
   const [coverArt, setCoverArtFile] = useState<File | null>(null)
   const [coverArtPreviewUrl, setCoverArtPreviewUrl] = useState<string | null>(null)
   const [bitrate, setBitrate] = useState(128)
@@ -38,6 +40,8 @@ export function useAudioBinder() {
   const filesRef = useRef(files)
   const titleRef = useRef(title)
   const authorRef = useRef(author)
+  const narratorRef = useRef(narrator)
+  const genreRef = useRef(genre)
   const coverArtRef = useRef(coverArt)
   const bitrateRef = useRef(bitrate)
   const channelsRef = useRef(channels)
@@ -45,6 +49,8 @@ export function useAudioBinder() {
   useEffect(() => { filesRef.current = files }, [files])
   useEffect(() => { titleRef.current = title }, [title])
   useEffect(() => { authorRef.current = author }, [author])
+  useEffect(() => { narratorRef.current = narrator }, [narrator])
+  useEffect(() => { genreRef.current = genre }, [genre])
   useEffect(() => { coverArtRef.current = coverArt }, [coverArt])
   useEffect(() => { bitrateRef.current = bitrate }, [bitrate])
   useEffect(() => { channelsRef.current = channels }, [channels])
@@ -116,6 +122,8 @@ export function useAudioBinder() {
     const currentFiles = filesRef.current
     const currentTitle = titleRef.current
     const currentAuthor = authorRef.current
+    const currentNarrator = narratorRef.current
+    const currentGenre = genreRef.current
     const currentCoverArt = coverArtRef.current
     const currentBitrate = bitrateRef.current
     const currentChannels = channelsRef.current
@@ -199,7 +207,7 @@ export function useAudioBinder() {
         return { title: entry.chapterTitle, startMs, endMs: cursorMs }
       })
 
-      const metadata = buildFFMetadata(currentTitle, currentAuthor, chapters)
+      const metadata = buildFFMetadata(currentTitle, currentAuthor, currentNarrator, currentGenre, chapters)
       await ffmpeg.writeFile('metadata.txt', metadata)
 
       const concatList = currentFiles.map(f => `file '${f.safeFilename}'`).join('\n')
@@ -296,6 +304,8 @@ export function useAudioBinder() {
     setFiles([])
     setTitle('')
     setAuthor('')
+    setNarrator('')
+    setGenre('Audiobook')
     setCoverArtFile(null)
     setCoverArtPreviewUrl(null)
     setBitrate(128)
@@ -313,6 +323,8 @@ export function useAudioBinder() {
     files,
     title,
     author,
+    narrator,
+    genre,
     coverArtPreviewUrl,
     bitrate,
     channels,
@@ -329,6 +341,8 @@ export function useAudioBinder() {
     updateChapterTitle,
     setTitle,
     setAuthor,
+    setNarrator,
+    setGenre,
     setCoverArt,
     setBitrate,
     setChannels,
