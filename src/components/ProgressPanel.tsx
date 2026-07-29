@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { BinderStatus } from '../hooks/useAudioBinder'
+import type { OutputFile } from '../hooks/useAudioBinder'
 
 interface Props {
   status: BinderStatus
@@ -7,8 +8,7 @@ interface Props {
   label: string
   startedAt: number | null
   error: string | null
-  outputUrl: string | null
-  outputFilename: string
+  outputFiles: OutputFile[]
   onReset: () => void
 }
 
@@ -39,8 +39,7 @@ export default function ProgressPanel({
   label,
   startedAt,
   error,
-  outputUrl,
-  outputFilename,
+  outputFiles,
   onReset,
 }: Props) {
   const isActive = status === 'processing' || status === 'loading-ffmpeg'
@@ -65,19 +64,28 @@ export default function ProgressPanel({
     )
   }
 
-  if (status === 'done' && outputUrl) {
+  if (status === 'done' && outputFiles.length > 0) {
     return (
       <div className="space-y-3">
         <div className="bg-green-950/40 border border-green-800/60 rounded-lg p-4 text-center">
-          <p className="text-green-400 font-medium">Audiobook ready</p>
+          <p className="text-green-400 font-medium">
+            {outputFiles.length === 1 ? 'Audiobook ready' : `${outputFiles.length} volumes ready`}
+          </p>
         </div>
-        <a
-          href={outputUrl}
-          download={outputFilename}
-          className="block w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium text-center transition-colors"
-        >
-          Download {outputFilename}
-        </a>
+
+        <div className="flex flex-col gap-2">
+          {outputFiles.map((f, i) => (
+            <a
+              key={i}
+              href={f.url}
+              download={f.filename}
+              className="block w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium text-center transition-colors text-sm"
+            >
+              {outputFiles.length === 1 ? `Download ${f.filename}` : `Download Part ${i + 1} — ${f.filename}`}
+            </a>
+          ))}
+        </div>
+
         <button
           onClick={onReset}
           className="w-full py-2 text-slate-500 hover:text-slate-300 text-sm transition-colors"

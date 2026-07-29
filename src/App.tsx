@@ -41,7 +41,6 @@ export default function App() {
 
   const isProcessing = binder.status === 'loading-ffmpeg' || binder.status === 'processing'
   const totalDuration = binder.files.reduce((sum, f) => sum + (f.duration ?? 0), 0)
-  const outputFilename = `${binder.title.trim() || 'audiobook'}.m4b`
   const estimatedMB = totalDuration > 0
     ? ((binder.bitrate * 1000 * totalDuration) / 8 / 1024 / 1024).toFixed(1)
     : null
@@ -155,10 +154,14 @@ export default function App() {
           bitrate={binder.bitrate}
           channels={binder.channels}
           sampleRate={binder.sampleRate}
+          splitEnabled={binder.splitEnabled}
+          splitHours={binder.splitHours}
           disabled={isProcessing}
           onBitrate={binder.setBitrate}
           onChannels={binder.setChannels}
           onSampleRate={binder.setSampleRate}
+          onSplitEnabled={binder.setSplitEnabled}
+          onSplitHours={binder.setSplitHours}
         />
 
         {/* File area */}
@@ -215,8 +218,7 @@ export default function App() {
             label={binder.progressLabel}
             startedAt={binder.startedAt}
             error={binder.error}
-            outputUrl={binder.outputUrl}
-            outputFilename={outputFilename}
+            outputFiles={binder.outputFiles}
             onReset={binder.reset}
           />
         ) : (

@@ -177,8 +177,11 @@ export default function EditorPanel() {
           label={editor.progressLabel}
           startedAt={editor.startedAt}
           error={editor.error}
-          outputUrl={editor.outputUrl}
-          outputFilename={editor.outputFilename}
+          outputFiles={
+            editor.outputUrl
+              ? [{ url: editor.outputUrl, filename: editor.outputFilename }]
+              : []
+          }
           onReset={editor.reset}
         />
       ) : (

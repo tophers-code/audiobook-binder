@@ -13,7 +13,34 @@ export interface AudioFileEntry {
   duration: number | null
 }
 
+export interface OutputFile {
+  url: string
+  filename: string
+}
+
 export type BinderStatus = 'idle' | 'loading-ffmpeg' | 'processing' | 'done' | 'error'
+
+// Groups file indices into volumes so no volume exceeds maxSecs total duration.
+// A single file longer than maxSecs gets its own volume.
+function groupIntoVolumes(durations: number[], maxSecs: number): number[][] {
+  if (!isFinite(maxSecs) || maxSecs <= 0) return [durations.map((_, i) => i)]
+  const volumes: number[][] = []
+  let current: number[] = []
+  let acc = 0
+  for (let i = 0; i < durations.length; i++) {
+    const d = durations[i] ?? 0
+    if (current.length > 0 && acc + d > maxSecs) {
+      volumes.push(current)
+      current = [i]
+      acc = d
+    } else {
+      current.push(i)
+      acc += d
+    }
+  }
+  if (current.length > 0) volumes.push(current)
+  return volumes
+}
 
 export function useAudioBinder() {
   const [files, setFiles] = useState<AudioFileEntry[]>([])
@@ -26,18 +53,20 @@ export function useAudioBinder() {
   const [bitrate, setBitrate] = useState(128)
   const [channels, setChannels] = useState<1 | 2>(2)
   const [sampleRate, setSampleRate] = useState(44100)
+  const [splitEnabled, setSplitEnabled] = useState(false)
+  const [splitHours, setSplitHours] = useState(3)
   const [status, setStatus] = useState<BinderStatus>('idle')
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
   const [startedAt, setStartedAt] = useState<number | null>(null)
-  const [outputUrl, setOutputUrl] = useState<string | null>(null)
+  const [outputFiles, setOutputFiles] = useState<OutputFile[]>([])
   const [error, setError] = useState<string | null>(null)
 
   const ffmpegRef = useRef<FFmpeg | null>(null)
-  const outputUrlRef = useRef<string | null>(null)
+  const outputUrlsRef = useRef<string[]>([])
   const coverArtPreviewUrlRef = useRef<string | null>(null)
 
-  // Keep refs in sync so the stable `bind` callback can read latest values
+  // Refs so the stable bind() callback always reads current values
   const filesRef = useRef(files)
   const titleRef = useRef(title)
   const authorRef = useRef(author)
@@ -47,6 +76,8 @@ export function useAudioBinder() {
   const bitrateRef = useRef(bitrate)
   const channelsRef = useRef(channels)
   const sampleRateRef = useRef(sampleRate)
+  const splitEnabledRef = useRef(splitEnabled)
+  const splitHoursRef = useRef(splitHours)
   useEffect(() => { filesRef.current = files }, [files])
   useEffect(() => { titleRef.current = title }, [title])
   useEffect(() => { authorRef.current = author }, [author])
@@ -56,9 +87,10 @@ export function useAudioBinder() {
   useEffect(() => { bitrateRef.current = bitrate }, [bitrate])
   useEffect(() => { channelsRef.current = channels }, [channels])
   useEffect(() => { sampleRateRef.current = sampleRate }, [sampleRate])
+  useEffect(() => { splitEnabledRef.current = splitEnabled }, [splitEnabled])
+  useEffect(() => { splitHoursRef.current = splitHours }, [splitHours])
 
   const setCoverArt = useCallback((file: File | null) => {
-    // Revoke previous preview URL
     if (coverArtPreviewUrlRef.current) {
       URL.revokeObjectURL(coverArtPreviewUrlRef.current)
       coverArtPreviewUrlRef.current = null
@@ -157,16 +189,16 @@ export function useAudioBinder() {
     const currentBitrate = bitrateRef.current
     const currentChannels = channelsRef.current
     const currentSampleRate = sampleRateRef.current
+    const currentSplitEnabled = splitEnabledRef.current
+    const currentSplitHours = splitHoursRef.current
 
     if (currentFiles.length === 0) return
 
-    if (outputUrlRef.current) {
-      URL.revokeObjectURL(outputUrlRef.current)
-      outputUrlRef.current = null
-    }
+    for (const url of outputUrlsRef.current) URL.revokeObjectURL(url)
+    outputUrlsRef.current = []
 
     setError(null)
-    setOutputUrl(null)
+    setOutputFiles([])
     setStatus('loading-ffmpeg')
     setProgress(0)
     setProgressLabel('Loading FFmpeg...')
@@ -183,127 +215,128 @@ export function useAudioBinder() {
 
       const ffmpeg = ffmpegRef.current
 
-      // Track encode progress via time position in FFmpeg log output
-      const totalDurationSec = currentFiles.reduce((sum, f) => sum + (f.duration ?? 0), 0)
-      const handleLog = ({ message }: { message: string }) => {
-        console.log('[FFmpeg]', message)
-        const match = message.match(/time=(\d+):(\d+):(\d+\.\d+)/)
-        if (match && totalDurationSec > 0) {
-          const secs =
-            parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseFloat(match[3])
-          const p = 35 + Math.round((secs / totalDurationSec) * 58)
-          setProgress(Math.min(p, 93))
-          setProgressLabel(`Encoding... ${match[0].replace('time=', '')}`)
-        }
-      }
-      ffmpeg.on('log', handleLog)
-
       setStatus('processing')
       setStartedAt(Date.now())
       setProgress(5)
 
-      // Write input files into FFmpeg virtual FS
+      // Write all input files into FFmpeg virtual FS
       for (let i = 0; i < currentFiles.length; i++) {
         const entry = currentFiles[i]
         setProgressLabel(`Loading file ${i + 1} of ${currentFiles.length}...`)
-        setProgress(5 + Math.round((i / currentFiles.length) * 25))
+        setProgress(5 + Math.round((i / currentFiles.length) * 20))
         await ffmpeg.writeFile(entry.safeFilename, await fetchFile(entry.file))
       }
 
-      // Write cover art if provided — resize/convert to JPEG via Canvas first
-      // so FFmpeg.wasm never has to handle large RGBA PNGs through swscale
       if (currentCoverArt) {
         setProgressLabel('Processing cover art...')
         const coverBytes = await prepareImageForFFmpeg(currentCoverArt)
         await ffmpeg.writeFile('cover.jpg', coverBytes)
       }
 
-      setProgress(30)
+      setProgress(28)
       setProgressLabel('Computing chapter times...')
 
-      // Resolve durations (may already be cached in state)
       const durations = await Promise.all(
         currentFiles.map(entry =>
           entry.duration !== null ? Promise.resolve(entry.duration) : getAudioDuration(entry.file),
         ),
       )
 
-      // Build FFMETADATA with chapter markers
-      let cursorMs = 0
-      const chapters = currentFiles.map((entry, i) => {
-        const startMs = cursorMs
-        cursorMs += (durations[i] ?? 0) * 1000
-        return { title: entry.chapterTitle, startMs, endMs: cursorMs }
-      })
+      // Group files into volumes
+      const maxSecs = currentSplitEnabled ? currentSplitHours * 3600 : Infinity
+      const volumes = groupIntoVolumes(durations, maxSecs)
+      const results: OutputFile[] = []
 
-      const metadata = buildFFMetadata(currentTitle, currentAuthor, currentNarrator, currentGenre, chapters)
-      await ffmpeg.writeFile('metadata.txt', metadata)
+      for (let v = 0; v < volumes.length; v++) {
+        const volIndices = volumes[v]
+        const volFiles = volIndices.map(i => currentFiles[i])
+        const volDurations = volIndices.map(i => durations[i] ?? 0)
+        const volTotalSec = volDurations.reduce((a, b) => a + b, 0)
 
-      const concatList = currentFiles.map(f => `file '${f.safeFilename}'`).join('\n')
-      await ffmpeg.writeFile('filelist.txt', concatList)
+        // Chapter times relative to this volume's start
+        let cursorMs = 0
+        const chapters = volFiles.map((f, j) => {
+          const startMs = cursorMs
+          cursorMs += volDurations[j] * 1000
+          return { title: f.chapterTitle, startMs, endMs: cursorMs }
+        })
 
-      setProgress(35)
-      setProgressLabel('Encoding audiobook...')
+        const volTitle = volumes.length > 1
+          ? `${currentTitle || 'Audiobook'} (Part ${v + 1} of ${volumes.length})`
+          : currentTitle
+        const metadata = buildFFMetadata(volTitle, currentAuthor, currentNarrator, currentGenre, chapters)
+        await ffmpeg.writeFile(`meta_${v}.txt`, metadata)
 
-      const args: string[] = [
-        '-f', 'concat',
-        '-safe', '0',
-        '-i', 'filelist.txt',
-        '-i', 'metadata.txt',
-      ]
+        const concatList = volFiles.map(f => `file '${f.safeFilename}'`).join('\n')
+        await ffmpeg.writeFile(`list_${v}.txt`, concatList)
 
-      if (currentCoverArt) {
-        args.push('-i', 'cover.jpg')
+        // Progress range for this volume: 30–93% divided among volumes
+        const volBase = 30 + (v / volumes.length) * 63
+        const volSlice = 63 / volumes.length
+
+        const handleLog = ({ message }: { message: string }) => {
+          console.log('[FFmpeg]', message)
+          const match = message.match(/time=(\d+):(\d+):(\d+\.\d+)/)
+          if (match && volTotalSec > 0) {
+            const secs = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseFloat(match[3])
+            const p = volBase + Math.min(secs / volTotalSec, 1) * volSlice
+            setProgress(Math.round(p))
+            const timeStr = match[0].replace('time=', '')
+            setProgressLabel(
+              volumes.length > 1
+                ? `Encoding Part ${v + 1} of ${volumes.length}... ${timeStr}`
+                : `Encoding... ${timeStr}`,
+            )
+          }
+        }
+        ffmpeg.on('log', handleLog)
+
+        const args: string[] = [
+          '-f', 'concat', '-safe', '0', '-i', `list_${v}.txt`,
+          '-i', `meta_${v}.txt`,
+        ]
+        if (currentCoverArt) args.push('-i', 'cover.jpg')
+        args.push('-map', '0:a:0')
+        if (currentCoverArt) args.push('-map', '2:v:0')
+        args.push(
+          '-map_metadata', '1',
+          '-map_chapters', '1',
+          '-c:a', 'aac',
+          '-b:a', `${currentBitrate}k`,
+          '-ac', String(currentChannels),
+          '-ar', String(currentSampleRate),
+        )
+        if (currentCoverArt) args.push('-c:v', 'copy', '-disposition:v:0', 'attached_pic')
+        else args.push('-vn')
+        args.push('-f', 'mp4', '-movflags', '+faststart', `out_${v}.m4b`)
+
+        await ffmpeg.exec(args)
+        ffmpeg.off('log', handleLog)
+
+        const data = (await ffmpeg.readFile(`out_${v}.m4b`)) as Uint8Array
+        const blob = new Blob([data.buffer as ArrayBuffer], { type: 'audio/mp4' })
+        const url = URL.createObjectURL(blob)
+        outputUrlsRef.current.push(url)
+
+        const stem = currentTitle.trim() || 'audiobook'
+        const suffix = volumes.length > 1 ? ` - Part ${v + 1} of ${volumes.length}` : ''
+        results.push({ url, filename: `${stem}${suffix}.m4b` })
+
+        // Free virtual FS memory for this volume before starting the next
+        await ffmpeg.deleteFile(`list_${v}.txt`).catch(() => {})
+        await ffmpeg.deleteFile(`meta_${v}.txt`).catch(() => {})
+        await ffmpeg.deleteFile(`out_${v}.m4b`).catch(() => {})
       }
 
-      // Map audio from input 0, cover art from input 2 (if present)
-      args.push('-map', '0:a:0')
-      if (currentCoverArt) {
-        args.push('-map', '2:v:0')
-      }
-
-      args.push(
-        '-map_metadata', '1',
-        '-map_chapters', '1',
-        '-c:a', 'aac',
-        '-b:a', `${currentBitrate}k`,
-        '-ac', String(currentChannels),
-        '-ar', String(currentSampleRate),
-      )
-
-      if (currentCoverArt) {
-        // Input is already a JPEG (prepared by Canvas), copy directly into container
-        args.push('-c:v', 'copy', '-disposition:v:0', 'attached_pic')
-      } else {
-        args.push('-vn')
-      }
-
-      args.push('-f', 'mp4', '-movflags', '+faststart', 'output.m4b')
-
-      await ffmpeg.exec(args)
-
-      ffmpeg.off('log', handleLog)
-
-      setProgress(95)
-      setProgressLabel('Preparing download...')
-
-      const data = (await ffmpeg.readFile('output.m4b')) as Uint8Array
-      const blob = new Blob([data.buffer as ArrayBuffer], { type: 'audio/mp4' })
-      const url = URL.createObjectURL(blob)
-      outputUrlRef.current = url
-
-      // Clean up virtual FS
+      // Clean up shared input files
       for (const entry of currentFiles) {
         await ffmpeg.deleteFile(entry.safeFilename).catch(() => {})
       }
-      await ffmpeg.deleteFile('filelist.txt').catch(() => {})
-      await ffmpeg.deleteFile('metadata.txt').catch(() => {})
-      await ffmpeg.deleteFile('output.m4b').catch(() => {})
       if (currentCoverArt) await ffmpeg.deleteFile('cover.jpg').catch(() => {})
 
       setProgress(100)
       setProgressLabel('Done!')
-      setOutputUrl(url)
+      setOutputFiles(results)
       setStatus('done')
     } catch (err) {
       console.error(err)
@@ -318,14 +351,14 @@ export function useAudioBinder() {
     setProgressLabel('')
     setStartedAt(null)
     setError(null)
-    setOutputUrl(null)
+    for (const url of outputUrlsRef.current) URL.revokeObjectURL(url)
+    outputUrlsRef.current = []
+    setOutputFiles([])
   }, [])
 
   const clearAll = useCallback(() => {
-    if (outputUrlRef.current) {
-      URL.revokeObjectURL(outputUrlRef.current)
-      outputUrlRef.current = null
-    }
+    for (const url of outputUrlsRef.current) URL.revokeObjectURL(url)
+    outputUrlsRef.current = []
     if (coverArtPreviewUrlRef.current) {
       URL.revokeObjectURL(coverArtPreviewUrlRef.current)
       coverArtPreviewUrlRef.current = null
@@ -340,12 +373,14 @@ export function useAudioBinder() {
     setBitrate(128)
     setChannels(2)
     setSampleRate(44100)
+    setSplitEnabled(false)
+    setSplitHours(3)
     setStatus('idle')
     setProgress(0)
     setProgressLabel('')
     setStartedAt(null)
     setError(null)
-    setOutputUrl(null)
+    setOutputFiles([])
   }, [])
 
   return {
@@ -358,11 +393,13 @@ export function useAudioBinder() {
     bitrate,
     channels,
     sampleRate,
+    splitEnabled,
+    splitHours,
     status,
     progress,
     progressLabel,
     startedAt,
-    outputUrl,
+    outputFiles,
     error,
     addFiles,
     removeFile,
@@ -377,6 +414,8 @@ export function useAudioBinder() {
     setBitrate,
     setChannels,
     setSampleRate,
+    setSplitEnabled,
+    setSplitHours,
     bind,
     reset,
     clearAll,
