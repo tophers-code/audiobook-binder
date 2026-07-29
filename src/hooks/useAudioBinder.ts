@@ -73,16 +73,22 @@ export function useAudioBinder() {
   }, [])
 
   const addFiles = useCallback((newFiles: File[]) => {
-    const mp3Files = newFiles.filter(
-      f => f.type === 'audio/mpeg' || f.name.toLowerCase().endsWith('.mp3'),
-    )
-    if (mp3Files.length === 0) return
+    const AUDIO_EXTS = new Set(['.mp3', '.m4a', '.aac', '.wav', '.flac', '.ogg', '.opus'])
+    const AUDIO_TYPES = new Set([
+      'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/wav',
+      'audio/x-wav', 'audio/flac', 'audio/x-flac', 'audio/ogg', 'audio/opus',
+    ])
+    const audioFiles = newFiles.filter(f => {
+      const ext = f.name.toLowerCase().match(/\.[^.]+$/)?.[0] ?? ''
+      return AUDIO_TYPES.has(f.type) || AUDIO_EXTS.has(ext)
+    })
+    if (audioFiles.length === 0) return
 
     const ts = Date.now()
-    const entries: AudioFileEntry[] = mp3Files.map((file, i) => ({
+    const entries: AudioFileEntry[] = audioFiles.map((file, i) => ({
       id: `${ts}-${i}-${file.name}`,
       file,
-      chapterTitle: file.name.replace(/\.mp3$/i, ''),
+      chapterTitle: file.name.replace(/\.[^.]+$/, ''),
       safeFilename: `input_${ts}_${i}_${sanitizeFilename(file.name)}`,
       duration: null,
     }))

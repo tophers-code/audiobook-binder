@@ -15,11 +15,11 @@ export default function DropZone({
   onFiles,
   compact = false,
   disabled = false,
-  accept = '.mp3,audio/mpeg',
+  accept = 'audio/*,.flac',
   multiple = true,
-  label = 'Drop MP3 files here',
-  sublabel = 'or click to browse — each file becomes a chapter',
-  compactLabel = 'Drop or click to add more MP3 files',
+  label = 'Drop audio files here',
+  sublabel = 'or click to browse — MP3, M4A, WAV, FLAC, OGG, OPUS · each file becomes a chapter',
+  compactLabel = 'Drop or click to add more audio files',
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
