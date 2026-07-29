@@ -1,13 +1,23 @@
 import { useAudioBinder } from './hooks/useAudioBinder'
+import { useLocalHistory } from './hooks/useLocalHistory'
 import DropZone from './components/DropZone'
 import FileList from './components/FileList'
 import ProgressPanel from './components/ProgressPanel'
 import CoverArtPicker from './components/CoverArtPicker'
 import EncodingOptions from './components/EncodingOptions'
+import AutocompleteInput from './components/AutocompleteInput'
 import { formatDuration } from './utils/audioHelpers'
+
+const INPUT_CLASS =
+  'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600 disabled:opacity-50 transition-colors'
 
 export default function App() {
   const binder = useAudioBinder()
+
+  const titleHistory   = useLocalHistory('title')
+  const authorHistory  = useLocalHistory('author')
+  const narratorHistory = useLocalHistory('narrator')
+  const genreHistory   = useLocalHistory('genre')
 
   const isProcessing = binder.status === 'loading-ffmpeg' || binder.status === 'processing'
   const totalDuration = binder.files.reduce((sum, f) => sum + (f.duration ?? 0), 0)
@@ -15,6 +25,22 @@ export default function App() {
   const estimatedMB = totalDuration > 0
     ? ((binder.bitrate * 1000 * totalDuration) / 8 / 1024 / 1024).toFixed(1)
     : null
+
+  const handleBind = () => {
+    // Persist non-empty values to history before binding
+    if (binder.title.trim())    titleHistory.add(binder.title.trim())
+    if (binder.author.trim())   authorHistory.add(binder.author.trim())
+    if (binder.narrator.trim()) narratorHistory.add(binder.narrator.trim())
+    if (binder.genre.trim())    genreHistory.add(binder.genre.trim())
+    binder.bind()
+  }
+
+  const fields = [
+    { label: 'Title',    value: binder.title,    onChange: binder.setTitle,    placeholder: 'My Audiobook',   history: titleHistory.history },
+    { label: 'Author',   value: binder.author,   onChange: binder.setAuthor,   placeholder: 'Author Name',    history: authorHistory.history },
+    { label: 'Narrator', value: binder.narrator, onChange: binder.setNarrator, placeholder: 'Narrator Name',  history: narratorHistory.history },
+    { label: 'Genre',    value: binder.genre,    onChange: binder.setGenre,    placeholder: 'Audiobook',      history: genreHistory.history },
+  ]
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col">
@@ -39,7 +65,7 @@ export default function App() {
       </header>
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-6 py-8 flex flex-col gap-6">
-        {/* Metadata row: cover art + title/author */}
+        {/* Metadata row: cover art + four fields */}
         <div className="flex gap-4 items-start">
           <div className="flex flex-col gap-1">
             <span className="text-xs text-slate-500 uppercase tracking-wider">Cover</span>
@@ -51,23 +77,18 @@ export default function App() {
           </div>
 
           <div className="flex-1 grid grid-cols-2 gap-3">
-            {[
-              { label: 'Title', value: binder.title, onChange: binder.setTitle, placeholder: 'My Audiobook' },
-              { label: 'Author', value: binder.author, onChange: binder.setAuthor, placeholder: 'Author Name' },
-              { label: 'Narrator', value: binder.narrator, onChange: binder.setNarrator, placeholder: 'Narrator Name' },
-              { label: 'Genre', value: binder.genre, onChange: binder.setGenre, placeholder: 'Audiobook' },
-            ].map(({ label, value, onChange, placeholder }) => (
+            {fields.map(({ label, value, onChange, placeholder, history }) => (
               <div key={label}>
                 <label className="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider">
                   {label}
                 </label>
-                <input
-                  type="text"
+                <AutocompleteInput
                   value={value}
-                  onChange={e => onChange(e.target.value)}
+                  onChange={onChange}
+                  history={history}
                   placeholder={placeholder}
                   disabled={isProcessing}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600 disabled:opacity-50 transition-colors"
+                  inputClassName={INPUT_CLASS}
                 />
               </div>
             ))}
@@ -125,7 +146,7 @@ export default function App() {
           />
         ) : (
           <button
-            onClick={binder.bind}
+            onClick={handleBind}
             disabled={binder.files.length === 0}
             className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed rounded-lg font-medium transition-colors text-sm"
           >
