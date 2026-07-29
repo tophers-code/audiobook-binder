@@ -3,6 +3,7 @@ import DropZone from './components/DropZone'
 import FileList from './components/FileList'
 import ProgressPanel from './components/ProgressPanel'
 import CoverArtPicker from './components/CoverArtPicker'
+import EncodingOptions from './components/EncodingOptions'
 import { formatDuration } from './utils/audioHelpers'
 
 export default function App() {
@@ -11,6 +12,9 @@ export default function App() {
   const isProcessing = binder.status === 'loading-ffmpeg' || binder.status === 'processing'
   const totalDuration = binder.files.reduce((sum, f) => sum + (f.duration ?? 0), 0)
   const outputFilename = `${binder.title.trim() || 'audiobook'}.m4b`
+  const estimatedMB = totalDuration > 0
+    ? ((binder.bitrate * 1000 * totalDuration) / 8 / 1024 / 1024).toFixed(1)
+    : null
 
   return (
     <div className="min-h-screen bg-slate-900 text-white flex flex-col">
@@ -76,6 +80,17 @@ export default function App() {
           </div>
         </div>
 
+        {/* Encoding options */}
+        <EncodingOptions
+          bitrate={binder.bitrate}
+          channels={binder.channels}
+          sampleRate={binder.sampleRate}
+          disabled={isProcessing}
+          onBitrate={binder.setBitrate}
+          onChannels={binder.setChannels}
+          onSampleRate={binder.setSampleRate}
+        />
+
         {/* File area */}
         {binder.files.length === 0 ? (
           <DropZone onFiles={binder.addFiles} />
@@ -85,6 +100,7 @@ export default function App() {
               <span className="text-xs text-slate-500">
                 {binder.files.length} file{binder.files.length !== 1 ? 's' : ''}
                 {totalDuration > 0 && ` · ${formatDuration(totalDuration)}`}
+                {estimatedMB && ` · ~${estimatedMB} MB`}
               </span>
               <span className="text-xs text-slate-600">Drag to reorder · click title to rename</span>
             </div>

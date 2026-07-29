@@ -20,6 +20,9 @@ export function useAudioBinder() {
   const [author, setAuthor] = useState('')
   const [coverArt, setCoverArtFile] = useState<File | null>(null)
   const [coverArtPreviewUrl, setCoverArtPreviewUrl] = useState<string | null>(null)
+  const [bitrate, setBitrate] = useState(128)
+  const [channels, setChannels] = useState<1 | 2>(2)
+  const [sampleRate, setSampleRate] = useState(44100)
   const [status, setStatus] = useState<BinderStatus>('idle')
   const [progress, setProgress] = useState(0)
   const [progressLabel, setProgressLabel] = useState('')
@@ -36,10 +39,16 @@ export function useAudioBinder() {
   const titleRef = useRef(title)
   const authorRef = useRef(author)
   const coverArtRef = useRef(coverArt)
+  const bitrateRef = useRef(bitrate)
+  const channelsRef = useRef(channels)
+  const sampleRateRef = useRef(sampleRate)
   useEffect(() => { filesRef.current = files }, [files])
   useEffect(() => { titleRef.current = title }, [title])
   useEffect(() => { authorRef.current = author }, [author])
   useEffect(() => { coverArtRef.current = coverArt }, [coverArt])
+  useEffect(() => { bitrateRef.current = bitrate }, [bitrate])
+  useEffect(() => { channelsRef.current = channels }, [channels])
+  useEffect(() => { sampleRateRef.current = sampleRate }, [sampleRate])
 
   const setCoverArt = useCallback((file: File | null) => {
     // Revoke previous preview URL
@@ -108,6 +117,9 @@ export function useAudioBinder() {
     const currentTitle = titleRef.current
     const currentAuthor = authorRef.current
     const currentCoverArt = coverArtRef.current
+    const currentBitrate = bitrateRef.current
+    const currentChannels = channelsRef.current
+    const currentSampleRate = sampleRateRef.current
 
     if (currentFiles.length === 0) return
 
@@ -217,7 +229,9 @@ export function useAudioBinder() {
         '-map_metadata', '1',
         '-map_chapters', '1',
         '-c:a', 'aac',
-        '-b:a', '128k',
+        '-b:a', `${currentBitrate}k`,
+        '-ac', String(currentChannels),
+        '-ar', String(currentSampleRate),
       )
 
       if (currentCoverArt) {
@@ -284,6 +298,9 @@ export function useAudioBinder() {
     setAuthor('')
     setCoverArtFile(null)
     setCoverArtPreviewUrl(null)
+    setBitrate(128)
+    setChannels(2)
+    setSampleRate(44100)
     setStatus('idle')
     setProgress(0)
     setProgressLabel('')
@@ -297,6 +314,9 @@ export function useAudioBinder() {
     title,
     author,
     coverArtPreviewUrl,
+    bitrate,
+    channels,
+    sampleRate,
     status,
     progress,
     progressLabel,
@@ -310,6 +330,9 @@ export function useAudioBinder() {
     setTitle,
     setAuthor,
     setCoverArt,
+    setBitrate,
+    setChannels,
+    setSampleRate,
     bind,
     reset,
     clearAll,
