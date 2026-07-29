@@ -7,11 +7,23 @@ interface Props {
   entry: AudioFileEntry
   index: number
   disabled: boolean
+  isActive: boolean
+  isPlaying: boolean
   onRemove: (id: string) => void
   onRenameChapter: (id: string, title: string) => void
+  onPlayPause: () => void
 }
 
-export default function FileListItem({ entry, index, disabled, onRemove, onRenameChapter }: Props) {
+export default function FileListItem({
+  entry,
+  index,
+  disabled,
+  isActive,
+  isPlaying,
+  onRemove,
+  onRenameChapter,
+  onPlayPause,
+}: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
   })
@@ -30,7 +42,9 @@ export default function FileListItem({ entry, index, disabled, onRemove, onRenam
       className={`flex items-center gap-3 rounded-lg px-3 py-2.5 border transition-colors ${
         isDragging
           ? 'bg-slate-700 border-indigo-500 shadow-lg'
-          : 'bg-slate-800 border-slate-700'
+          : isActive
+            ? 'bg-slate-800 border-indigo-600/50'
+            : 'bg-slate-800 border-slate-700'
       }`}
     >
       {/* Chapter number */}
@@ -75,6 +89,27 @@ export default function FileListItem({ entry, index, disabled, onRemove, onRenam
       <span className="text-xs text-slate-500 w-12 text-right flex-shrink-0">
         {entry.duration !== null ? formatDuration(entry.duration) : '…'}
       </span>
+
+      {/* Play / Pause */}
+      <button
+        onClick={onPlayPause}
+        disabled={disabled}
+        aria-label={isPlaying ? 'Pause' : 'Play'}
+        className={`transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 ${
+          isActive ? 'text-indigo-400 hover:text-indigo-300' : 'text-slate-600 hover:text-slate-300'
+        }`}
+      >
+        {isActive && isPlaying ? (
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="4" width="4" height="16" rx="1" />
+            <rect x="14" y="4" width="4" height="16" rx="1" />
+          </svg>
+        ) : (
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M5 3l14 9-14 9V3z" />
+          </svg>
+        )}
+      </button>
 
       {/* Remove */}
       <button

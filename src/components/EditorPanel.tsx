@@ -1,16 +1,19 @@
 import { useM4BEditor } from '../hooks/useM4BEditor'
 import { useLocalHistory } from '../hooks/useLocalHistory'
+import { useAudioPlayer } from '../hooks/useAudioPlayer'
 import DropZone from './DropZone'
 import CoverArtPicker from './CoverArtPicker'
 import AutocompleteInput from './AutocompleteInput'
 import ChapterEditor from './ChapterEditor'
 import ProgressPanel from './ProgressPanel'
+import MiniPlayer from './MiniPlayer'
 
 const INPUT_CLASS =
   'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500 placeholder-slate-600 disabled:opacity-50 transition-colors'
 
 export default function EditorPanel() {
   const editor = useM4BEditor()
+  const player = useAudioPlayer()
 
   const titleHistory    = useLocalHistory('title')
   const authorHistory   = useLocalHistory('author')
@@ -76,14 +79,42 @@ export default function EditorPanel() {
       {/* File header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
-          <svg className="text-slate-500 shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          {/* Preview play/pause */}
+          <button
+            onClick={() => {
+              if (!editor.inputFile) return
+              if (player.currentFile === editor.inputFile) {
+                player.isPlaying ? player.pause() : player.resume()
+              } else {
+                player.play(editor.inputFile, editor.inputFile.name)
+              }
+            }}
+            className={`transition-colors shrink-0 ${
+              player.currentFile === editor.inputFile && player.isPlaying
+                ? 'text-indigo-400 hover:text-indigo-300'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+            aria-label="Preview audio"
+          >
+            {player.currentFile === editor.inputFile && player.isPlaying ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="4" width="4" height="16" rx="1" />
+                <rect x="14" y="4" width="4" height="16" rx="1" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M5 3l14 9-14 9V3z" />
+              </svg>
+            )}
+          </button>
+          <svg className="text-slate-600 shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" />
           </svg>
           <span className="text-sm text-slate-400 truncate">{editor.inputFile?.name}</span>
         </div>
         {isReady && (
           <button
-            onClick={editor.clearAll}
+            onClick={() => { player.close(); editor.clearAll() }}
             className="text-sm text-slate-500 hover:text-slate-300 transition-colors shrink-0 ml-3"
           >
             Change file
@@ -158,6 +189,18 @@ export default function EditorPanel() {
         >
           Save M4B
         </button>
+      )}
+
+      {player.currentFile && (
+        <MiniPlayer
+          title={player.currentTitle}
+          isPlaying={player.isPlaying}
+          currentTime={player.currentTime}
+          duration={player.duration}
+          onPlayPause={() => player.isPlaying ? player.pause() : player.resume()}
+          onSeek={player.seek}
+          onClose={player.close}
+        />
       )}
     </div>
   )

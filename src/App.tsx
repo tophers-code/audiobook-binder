@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAudioBinder } from './hooks/useAudioBinder'
 import { useLocalHistory } from './hooks/useLocalHistory'
+import { useAudioPlayer } from './hooks/useAudioPlayer'
 import DropZone from './components/DropZone'
 import FileList from './components/FileList'
 import ProgressPanel from './components/ProgressPanel'
@@ -8,6 +9,7 @@ import CoverArtPicker from './components/CoverArtPicker'
 import EncodingOptions from './components/EncodingOptions'
 import AutocompleteInput from './components/AutocompleteInput'
 import EditorPanel from './components/EditorPanel'
+import MiniPlayer from './components/MiniPlayer'
 import { formatDuration } from './utils/audioHelpers'
 
 type Mode = 'create' | 'edit'
@@ -18,6 +20,7 @@ const INPUT_CLASS =
 export default function App() {
   const [mode, setMode] = useState<Mode>('create')
   const binder = useAudioBinder()
+  const player = useAudioPlayer()
 
   const titleHistory   = useLocalHistory('title')
   const authorHistory  = useLocalHistory('author')
@@ -65,7 +68,7 @@ export default function App() {
             {(['create', 'edit'] as Mode[]).map(m => (
               <button
                 key={m}
-                onClick={() => setMode(m)}
+                onClick={() => { player.pause(); setMode(m) }}
                 className={`px-3 py-1 rounded-md capitalize transition-colors ${
                   mode === m
                     ? 'bg-slate-700 text-slate-100'
@@ -149,9 +152,18 @@ export default function App() {
             <FileList
               files={binder.files}
               disabled={isProcessing}
+              playingFile={player.currentFile}
+              isPlayerPlaying={player.isPlaying}
               onRemove={binder.removeFile}
               onReorder={binder.reorderFiles}
               onRenameChapter={binder.updateChapterTitle}
+              onPlayFile={entry => {
+                if (player.currentFile === entry.file) {
+                  player.isPlaying ? player.pause() : player.resume()
+                } else {
+                  player.play(entry.file, entry.chapterTitle)
+                }
+              }}
             />
 
             <DropZone onFiles={binder.addFiles} compact disabled={isProcessing} />
@@ -181,6 +193,18 @@ export default function App() {
         )}
         </>}
       </main>
+
+      {mode === 'create' && player.currentFile && (
+        <MiniPlayer
+          title={player.currentTitle}
+          isPlaying={player.isPlaying}
+          currentTime={player.currentTime}
+          duration={player.duration}
+          onPlayPause={() => player.isPlaying ? player.pause() : player.resume()}
+          onSeek={player.seek}
+          onClose={player.close}
+        />
+      )}
     </div>
   )
 }

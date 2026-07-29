@@ -18,12 +18,24 @@ import FileListItem from './FileListItem'
 interface Props {
   files: AudioFileEntry[]
   disabled: boolean
+  playingFile: File | null
+  isPlayerPlaying: boolean
   onRemove: (id: string) => void
   onReorder: (activeId: string, overId: string) => void
   onRenameChapter: (id: string, title: string) => void
+  onPlayFile: (entry: AudioFileEntry) => void
 }
 
-export default function FileList({ files, disabled, onRemove, onReorder, onRenameChapter }: Props) {
+export default function FileList({
+  files,
+  disabled,
+  playingFile,
+  isPlayerPlaying,
+  onRemove,
+  onReorder,
+  onRenameChapter,
+  onPlayFile,
+}: Props) {
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -46,8 +58,11 @@ export default function FileList({ files, disabled, onRemove, onReorder, onRenam
               entry={file}
               index={index}
               disabled={disabled}
+              isActive={playingFile === file.file}
+              isPlaying={isPlayerPlaying && playingFile === file.file}
               onRemove={onRemove}
               onRenameChapter={onRenameChapter}
+              onPlayPause={() => onPlayFile(file)}
             />
           ))}
         </div>
