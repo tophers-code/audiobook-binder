@@ -125,18 +125,26 @@ export function useAudioBinder() {
     setFiles(prev => prev.map(f => (f.id === id ? { ...f, chapterTitle } : f)))
   }, [])
 
-  const applyTemplate = useCallback((template: string) => {
-    setFiles(prev => prev.map((f, i) => ({
-      ...f,
-      chapterTitle: template.trim()
-        ? applyChapterTemplate(
-            template, i, prev.length,
-            f.file.name.replace(/\.[^.]+$/, ''),
-            titleRef.current,
-            authorRef.current,
-          )
-        : f.file.name.replace(/\.[^.]+$/, ''),
-    })))
+  const applyTemplate = useCallback((template: string, selectedIds?: Set<string>) => {
+    setFiles(prev => {
+      const useSelection = selectedIds && selectedIds.size > 0
+      const targets = useSelection ? prev.filter(f => selectedIds!.has(f.id)) : prev
+      let idx = 0
+      return prev.map(f => {
+        const isTarget = useSelection ? selectedIds!.has(f.id) : true
+        if (!isTarget) return f
+        const chapterTitle = template.trim()
+          ? applyChapterTemplate(
+              template, idx, targets.length,
+              f.file.name.replace(/\.[^.]+$/, ''),
+              titleRef.current,
+              authorRef.current,
+            )
+          : f.file.name.replace(/\.[^.]+$/, '')
+        idx++
+        return { ...f, chapterTitle }
+      })
+    })
   }, [])
 
   const bind = useCallback(async () => {

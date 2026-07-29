@@ -20,10 +20,12 @@ interface Props {
   disabled: boolean
   playingFile: File | null
   isPlayerPlaying: boolean
+  selectedIds: Set<string>
   onRemove: (id: string) => void
   onReorder: (activeId: string, overId: string) => void
   onRenameChapter: (id: string, title: string) => void
   onPlayFile: (entry: AudioFileEntry) => void
+  onToggleSelect: (id: string) => void
 }
 
 export default function FileList({
@@ -31,10 +33,12 @@ export default function FileList({
   disabled,
   playingFile,
   isPlayerPlaying,
+  selectedIds,
   onRemove,
   onReorder,
   onRenameChapter,
   onPlayFile,
+  onToggleSelect,
 }: Props) {
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -60,9 +64,11 @@ export default function FileList({
               disabled={disabled}
               isActive={playingFile === file.file}
               isPlaying={isPlayerPlaying && playingFile === file.file}
+              isSelected={selectedIds.has(file.id)}
               onRemove={onRemove}
               onRenameChapter={onRenameChapter}
               onPlayPause={() => onPlayFile(file)}
+              onToggleSelect={() => onToggleSelect(file.id)}
             />
           ))}
         </div>

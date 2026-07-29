@@ -20,8 +20,19 @@ const INPUT_CLASS =
 
 export default function App() {
   const [mode, setMode] = useState<Mode>('create')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const binder = useAudioBinder()
   const player = useAudioPlayer()
+
+  const toggleSelect = (id: string) =>
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+
+  const selectAll = () => setSelectedIds(new Set(binder.files.map(f => f.id)))
+  const selectNone = () => setSelectedIds(new Set())
 
   const titleHistory   = useLocalHistory('title')
   const authorHistory  = useLocalHistory('author')
@@ -35,8 +46,17 @@ export default function App() {
     ? ((binder.bitrate * 1000 * totalDuration) / 8 / 1024 / 1024).toFixed(1)
     : null
 
+  const handleRemoveFile = (id: string) => {
+    binder.removeFile(id)
+    setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n })
+  }
+
+  const handleClearAll = () => {
+    binder.clearAll()
+    setSelectedIds(new Set())
+  }
+
   const handleBind = () => {
-    // Persist non-empty values to history before binding
     if (binder.title.trim())    titleHistory.add(binder.title.trim())
     if (binder.author.trim())   authorHistory.add(binder.author.trim())
     if (binder.narrator.trim()) narratorHistory.add(binder.narrator.trim())
@@ -83,7 +103,7 @@ export default function App() {
 
           {mode === 'create' && binder.files.length > 0 && binder.status === 'idle' && (
             <button
-              onClick={binder.clearAll}
+              onClick={handleClearAll}
               className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
             >
               Clear all
@@ -157,7 +177,11 @@ export default function App() {
 
             <ChapterTemplate
               disabled={isProcessing}
-              onApply={binder.applyTemplate}
+              selectedCount={selectedIds.size}
+              totalCount={binder.files.length}
+              onApply={template => binder.applyTemplate(template, selectedIds.size > 0 ? selectedIds : undefined)}
+              onSelectAll={selectAll}
+              onSelectNone={selectNone}
             />
 
             <FileList
@@ -165,9 +189,11 @@ export default function App() {
               disabled={isProcessing}
               playingFile={player.currentFile}
               isPlayerPlaying={player.isPlaying}
-              onRemove={binder.removeFile}
+              selectedIds={selectedIds}
+              onRemove={handleRemoveFile}
               onReorder={binder.reorderFiles}
               onRenameChapter={binder.updateChapterTitle}
+              onToggleSelect={toggleSelect}
               onPlayFile={entry => {
                 if (player.currentFile === entry.file) {
                   player.isPlaying ? player.pause() : player.resume()

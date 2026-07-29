@@ -9,9 +9,11 @@ interface Props {
   disabled: boolean
   isActive: boolean
   isPlaying: boolean
+  isSelected: boolean
   onRemove: (id: string) => void
   onRenameChapter: (id: string, title: string) => void
   onPlayPause: () => void
+  onToggleSelect: () => void
 }
 
 export default function FileListItem({
@@ -20,9 +22,11 @@ export default function FileListItem({
   disabled,
   isActive,
   isPlaying,
+  isSelected,
   onRemove,
   onRenameChapter,
   onPlayPause,
+  onToggleSelect,
 }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: entry.id,
@@ -47,6 +51,23 @@ export default function FileListItem({
             : 'bg-slate-800 border-slate-700'
       }`}
     >
+      {/* Select checkbox */}
+      <button
+        onClick={onToggleSelect}
+        aria-label={isSelected ? 'Deselect for template' : 'Select for template'}
+        className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+          isSelected
+            ? 'bg-indigo-600 border-indigo-600'
+            : 'border-slate-600 hover:border-slate-400 bg-transparent'
+        }`}
+      >
+        {isSelected && (
+          <svg width="9" height="9" viewBox="0 0 9 9" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1.5 4.5L3.5 6.5L7.5 2.5" />
+          </svg>
+        )}
+      </button>
+
       {/* Chapter number */}
       <span className="text-slate-600 text-xs w-5 text-right flex-shrink-0 select-none">
         {index + 1}
